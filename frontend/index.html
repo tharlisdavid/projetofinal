@@ -113,7 +113,31 @@
                         <label for="cpf" class="campo-label">
                             CPF <span class="campo-obrigatorio" aria-hidden="true">*</span>
                             <span class="sr-only">(obrigatório)</span>
+                            <button type="button" class="btn-ajuda-api" aria-label="Como funciona a validação de CPF" data-tooltip="cpf-tooltip">
+                                ❔
+                            </button>
                         </label>
+                        <div class="tooltip-api" id="cpf-tooltip" role="tooltip" aria-hidden="true">
+                            <button type="button" class="tooltip-fechar" aria-label="Fechar">×</button>
+                            <h4>🔐 Validação de CPF - API Invertexto</h4>
+                            <div class="tooltip-conteudo">
+                                <p><strong>Como funciona:</strong></p>
+                                <ol>
+                                    <li><strong>Validação Matemática Local:</strong> Primeiro, o sistema verifica se o CPF é matematicamente válido usando o algoritmo oficial dos dígitos verificadores (módulo 11).</li>
+                                    <li><strong>Verificação de Duplicidade:</strong> O sistema consulta a base de dados local para verificar se o CPF já está cadastrado.</li>
+                                    <li><strong>Validação via API:</strong> Se as validações anteriores passarem, o CPF é enviado para a API Invertexto que verifica se o documento existe na base da Receita Federal.</li>
+                                </ol>
+                                <p><strong>Fluxo técnico:</strong></p>
+                                <code>GET https://api.invertexto.com/v1/validator?token={token}&value={cpf}&type=cpf</code>
+                                <p><strong>Resposta da API:</strong></p>
+                                <code>{ "valid": true, "formatted": "123.456.789-00" }</code>
+                                <p><strong>Cache:</strong> CPFs validados são armazenados em cache durante a sessão para evitar chamadas repetidas.</p>
+                                <p><strong>Fallback:</strong> Se a API estiver indisponível, o sistema aceita a validação matemática local.</p>
+                            </div>
+                            <a href="https://api.invertexto.com/" target="_blank" rel="noopener noreferrer" class="tooltip-link">
+                                🔗 Documentação da API Invertexto
+                            </a>
+                        </div>
                         <input
                             type="text"
                             id="cpf"
@@ -153,7 +177,39 @@
                     <!-- Busca por CEP -->
                     <div class="grupo-campos">
                         <div class="campo">
-                            <label for="cep" class="campo-label">CEP</label>
+                            <label for="cep" class="campo-label">
+                                CEP
+                                <button type="button" class="btn-ajuda-api" aria-label="Como funciona a busca de CEP" data-tooltip="cep-tooltip">
+                                    ❔
+                                </button>
+                            </label>
+                            <div class="tooltip-api" id="cep-tooltip" role="tooltip" aria-hidden="true">
+                                <button type="button" class="tooltip-fechar" aria-label="Fechar">×</button>
+                                <h4>📍 Busca de Endereço - API ViaCEP</h4>
+                                <div class="tooltip-conteudo">
+                                    <p><strong>Como funciona:</strong></p>
+                                    <ol>
+                                        <li><strong>Digitação do CEP:</strong> O usuário digita o CEP no formato 00000-000 (a máscara é aplicada automaticamente).</li>
+                                        <li><strong>Disparo da Busca:</strong> Quando o campo perde o foco (blur) e o CEP tem 8 dígitos, a busca é iniciada.</li>
+                                        <li><strong>Consulta à API:</strong> O sistema envia uma requisição GET para a API ViaCEP com o CEP informado.</li>
+                                        <li><strong>Preenchimento Automático:</strong> Se encontrado, os campos Logradouro, Bairro, Cidade e Estado são preenchidos automaticamente.</li>
+                                    </ol>
+                                    <p><strong>Fluxo técnico:</strong></p>
+                                    <code>GET https://viacep.com.br/ws/{cep}/json/</code>
+                                    <p><strong>Exemplo de resposta:</strong></p>
+                                    <code>{
+  "cep": "01310-100",
+  "logradouro": "Avenida Paulista",
+  "bairro": "Bela Vista",
+  "localidade": "São Paulo",
+  "uf": "SP"
+}</code>
+                                    <p><strong>Tratamento de erros:</strong> Se o CEP não for encontrado, o sistema exibe uma mensagem de erro e libera os campos para preenchimento manual.</p>
+                                </div>
+                                <a href="https://viacep.com.br/" target="_blank" rel="noopener noreferrer" class="tooltip-link">
+                                    🔗 Documentação da API ViaCEP
+                                </a>
+                            </div>
                             <div class="campo-com-icone">
                                 <input
                                     type="text"
@@ -174,7 +230,37 @@
 
                     <div class="grupo-campos">
                         <div class="campo">
-                            <label for="estado" class="campo-label">Estado</label>
+                            <label for="estado" class="campo-label">
+                                Estado
+                                <button type="button" class="btn-ajuda-api" aria-label="Como funciona a listagem de estados" data-tooltip="estado-tooltip">
+                                    ❔
+                                </button>
+                            </label>
+                            <div class="tooltip-api" id="estado-tooltip" role="tooltip" aria-hidden="true">
+                                <button type="button" class="tooltip-fechar" aria-label="Fechar">×</button>
+                                <h4>🗺️ Lista de Estados - API IBGE</h4>
+                                <div class="tooltip-conteudo">
+                                    <p><strong>Como funciona:</strong></p>
+                                    <ol>
+                                        <li><strong>Carregamento Inicial:</strong> Quando a página é carregada, o sistema faz uma requisição à API do IBGE para obter a lista de todos os estados brasileiros.</li>
+                                        <li><strong>Ordenação:</strong> Os estados são retornados já ordenados alfabeticamente pelo nome.</li>
+                                        <li><strong>Cache:</strong> A lista é armazenada em cache na memória para evitar requisições repetidas durante a sessão.</li>
+                                        <li><strong>Preenchimento do Select:</strong> O dropdown é populado com os 27 estados (26 + DF), exibindo o nome completo e usando a sigla (UF) como valor.</li>
+                                    </ol>
+                                    <p><strong>Fluxo técnico:</strong></p>
+                                    <code>GET https://servicodados.ibge.gov.br/api/v1/localidades/estados?orderBy=nome</code>
+                                    <p><strong>Exemplo de resposta:</strong></p>
+                                    <code>[
+  { "id": 12, "sigla": "AC", "nome": "Acre" },
+  { "id": 27, "sigla": "AL", "nome": "Alagoas" },
+  ...
+]</code>
+                                    <p><strong>Fallback:</strong> Se a API estiver indisponível, o sistema utiliza uma lista estática de estados pré-definida no código.</p>
+                                </div>
+                                <a href="https://servicodados.ibge.gov.br/api/docs/localidades" target="_blank" rel="noopener noreferrer" class="tooltip-link">
+                                    🔗 Documentação da API IBGE Localidades
+                                </a>
+                            </div>
                             <select
                                 id="estado"
                                 name="estado"
@@ -187,7 +273,38 @@
                         </div>
 
                         <div class="campo">
-                            <label for="cidade" class="campo-label">Cidade</label>
+                            <label for="cidade" class="campo-label">
+                                Cidade
+                                <button type="button" class="btn-ajuda-api" aria-label="Como funciona a listagem de cidades" data-tooltip="cidade-tooltip">
+                                    ❔
+                                </button>
+                            </label>
+                            <div class="tooltip-api" id="cidade-tooltip" role="tooltip" aria-hidden="true">
+                                <button type="button" class="tooltip-fechar" aria-label="Fechar">×</button>
+                                <h4>🏙️ Lista de Cidades - API IBGE</h4>
+                                <div class="tooltip-conteudo">
+                                    <p><strong>Como funciona:</strong></p>
+                                    <ol>
+                                        <li><strong>Seleção do Estado:</strong> Quando o usuário seleciona um estado, o sistema dispara uma requisição à API do IBGE para obter os municípios daquele estado.</li>
+                                        <li><strong>Parâmetro UF:</strong> A sigla do estado (ex: "SP", "RJ") é enviada como parâmetro na URL da requisição.</li>
+                                        <li><strong>Ordenação:</strong> As cidades são retornadas já ordenadas alfabeticamente pelo nome.</li>
+                                        <li><strong>Cache por Estado:</strong> As cidades de cada estado são armazenadas em cache separadamente, evitando requisições repetidas.</li>
+                                        <li><strong>Atualização do Select:</strong> O dropdown de cidades é atualizado com todos os municípios do estado selecionado.</li>
+                                    </ol>
+                                    <p><strong>Fluxo técnico:</strong></p>
+                                    <code>GET https://servicodados.ibge.gov.br/api/v1/localidades/estados/{UF}/municipios?orderBy=nome</code>
+                                    <p><strong>Exemplo de resposta (SP):</strong></p>
+                                    <code>[
+  { "id": 3550308, "nome": "São Paulo" },
+  { "id": 3509502, "nome": "Campinas" },
+  ...
+]</code>
+                                    <p><strong>Fallback:</strong> Se a API falhar, o campo é convertido para um input de texto livre, permitindo digitação manual.</p>
+                                </div>
+                                <a href="https://servicodados.ibge.gov.br/api/docs/localidades" target="_blank" rel="noopener noreferrer" class="tooltip-link">
+                                    🔗 Documentação da API IBGE Localidades
+                                </a>
+                            </div>
                             <select
                                 id="cidade"
                                 name="cidade"

@@ -168,11 +168,12 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     function adicionarEventListenersBotoes() {
-        // Botões de editar
+        // Botões de editar - redireciona para tela de cadastro
         document.querySelectorAll('.btn-editar').forEach(btn => {
             btn.addEventListener('click', function() {
                 const id = this.dataset.id;
-                abrirModalEdicao(id);
+                // Redirecionar para a tela de cadastro com o ID do usuário
+                window.location.href = `index.html?editar=${id}`;
             });
         });
 
@@ -223,15 +224,37 @@ document.addEventListener('DOMContentLoaded', async function() {
         const overlay = document.querySelector('.modal-overlay');
         const form = document.getElementById('form-edicao');
 
+        // Garantir que os estados estão carregados
+        if (estadosCache.length === 0) {
+            await carregarEstados();
+        }
+
         // Carregar estados no select do modal
         const editEstado = document.getElementById('edit-estado');
         editEstado.innerHTML = '<option value="">Selecione o estado</option>';
-        estadosCache.forEach(estado => {
-            const option = document.createElement('option');
-            option.value = estado.sigla;
-            option.textContent = estado.nome;
-            editEstado.appendChild(option);
-        });
+
+        if (estadosCache && estadosCache.length > 0) {
+            estadosCache.forEach(estado => {
+                const option = document.createElement('option');
+                option.value = estado.sigla;
+                option.textContent = estado.nome;
+                editEstado.appendChild(option);
+            });
+        } else {
+            console.warn('Estados não carregados, usando buscarEstados diretamente');
+            try {
+                const estados = await buscarEstados();
+                estados.forEach(estado => {
+                    const option = document.createElement('option');
+                    option.value = estado.sigla;
+                    option.textContent = estado.nome;
+                    editEstado.appendChild(option);
+                });
+                estadosCache = estados;
+            } catch (error) {
+                console.error('Erro ao carregar estados:', error);
+            }
+        }
 
         // Preencher campos com dados do usuário
         document.getElementById('edit-id').value = usuario.id;
@@ -285,14 +308,150 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Event listeners do modal
         const editCPF = document.getElementById('edit-cpf');
         const editCPFAjuda = document.getElementById('edit-cpf-ajuda');
+        const editCPFErro = document.getElementById('edit-cpf-erro');
+
+        // Variáveis de controle para validação de CPF
+        let cpfOriginal = usuario.cpf.replace(/\D/g, '');
+        let cpfUltimoValidado = cpfOriginal;
 
         // Máscara de CPF durante digitação
-        editCPF.addEventListener('input', function(e) {
+        editCPF.addEventListener('input', async function(e) {
             e.target.value = mascaraCPF(e.target.value);
-            // Limpar erro ao digitar
-            document.getElementById('edit-cpf-erro').textContent = '';
-            editCPF.classList.remove('invalido');
+            // Validação básica durante digitação
+            await validarCampoCPFBasicoEdicao(cpfOriginal);
         });
+
+        // Validação completa no blur (com API)
+        editCPF.addEventListener('blur', async function() {
+            await validarCampoCPFCompletoEdicao(cpfOriginal);
+        });
+
+        // Função de validação básica do CPF na edição
+        async function validarCampoCPFBasicoEdicao(cpfOriginalUsuario) {
+            const cpf = editCPF.value;
+
+            if (!cpf) {
+                editCPFErro.textContent = '';
+                editCPF.classList.remove('valido', 'invalido');
+                return false;
+            }
+
+            const cpfLimpo = cpf.replace(/\D/g, '');
+
+            if (cpfLimpo.length < 11) {
+                editCPFErro.textContent = 'CPF incompleto';
+                editCPF.classList.add('invalido');
+                editCPF.classList.remove('valido');
+                return false;
+            }
+
+            if (!validarCPF(cpfLimpo)) {
+                editCPFErro.textContent = 'CPF inválido. Verifique o número digitado.';
+                editCPF.classList.add('invalido');
+                editCPF.classList.remove('valido');
+                return false;
+            }
+
+            // Verificar se CPF já existe (exceto o próprio usuário)
+            if (cpfLimpo !== cpfOriginalUsuario) {
+                const usuarios = await Storage.getUsuarios();
+                const cpfExiste = usuarios.some(u =>
+                    u.cpf.replace(/\D/g, '') === cpfLimpo && u.id !== usuarioEditandoId
+                );
+
+                if (cpfExiste) {
+                    editCPFErro.textContent = 'Este CPF já está cadastrado no sistema.';
+                    editCPF.classList.add('invalido');
+                    editCPF.classList.remove('valido');
+                    return false;
+                }
+            }
+
+            // CPF passou na validação básica
+            editCPFErro.textContent = '';
+            editCPF.classList.remove('invalido');
+            return true;
+        }
+
+        // Função de validação completa do CPF na edição (com API)
+        async function validarCampoCPFCompletoEdicao(cpfOriginalUsuario) {
+            const cpf = editCPF.value;
+
+            if (!cpf) {
+                return false;
+            }
+
+            const cpfLimpo = cpf.replace(/\D/g, '');
+
+            if (cpfLimpo.length < 11) {
+                return false;
+            }
+
+            // Evitar validação duplicada
+            if (cpfLimpo === cpfUltimoValidado) {
+                return editCPF.classList.contains('valido');
+            }
+
+            // Primeiro fazer validação básica
+            if (!(await validarCampoCPFBasicoEdicao(cpfOriginalUsuario))) {
+                return false;
+            }
+
+            // Se o CPF não mudou, não precisa validar na API
+            if (cpfLimpo === cpfOriginalUsuario) {
+                editCPFErro.textContent = '';
+                editCPF.classList.add('valido');
+                editCPF.classList.remove('invalido');
+                editCPFAjuda.textContent = 'CPF válido';
+                return true;
+            }
+
+            // Marcar que validação está em andamento
+            editCPFAjuda.textContent = 'Verificando CPF...';
+            editCPF.classList.add('validando');
+
+            try {
+                // Chamar API de validação
+                const resultado = await validarCPFReal(cpfLimpo);
+
+                cpfUltimoValidado = cpfLimpo;
+
+                if (!resultado.valido) {
+                    editCPFErro.textContent = resultado.mensagem || 'CPF não encontrado na base de dados.';
+                    editCPF.classList.add('invalido');
+                    editCPF.classList.remove('valido');
+                    editCPFAjuda.textContent = 'CPF não verificado';
+                    return false;
+                }
+
+                // CPF válido e verificado
+                editCPFErro.textContent = '';
+                editCPF.classList.add('valido');
+                editCPF.classList.remove('invalido');
+
+                // Mostrar fonte da validação
+                if (resultado.fonte === 'api') {
+                    editCPFAjuda.textContent = '✓ CPF verificado com sucesso';
+                    mostrarNotificacao('CPF verificado e válido!', 'sucesso');
+                } else {
+                    editCPFAjuda.textContent = '✓ CPF válido (validação local)';
+                }
+
+                return true;
+
+            } catch (error) {
+                console.error('Erro na validação do CPF:', error);
+                // Em caso de erro, aceitar com validação local
+                editCPFErro.textContent = '';
+                editCPF.classList.add('valido');
+                editCPF.classList.remove('invalido');
+                editCPFAjuda.textContent = '✓ CPF válido (verificação offline)';
+                return true;
+
+            } finally {
+                editCPF.classList.remove('validando');
+            }
+        }
 
         const editCEP = document.getElementById('edit-cep');
         const editCEPIcone = document.getElementById('edit-cep-icone');
@@ -351,15 +510,19 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
         });
 
-        // Botão cancelar
-        const btnCancelar = document.getElementById('btn-cancelar-edicao');
+        // Botão cancelar - buscar dentro do overlay para garantir que encontra o elemento correto
+        const btnCancelar = overlay.querySelector('#btn-cancelar-edicao');
         if (btnCancelar) {
-            btnCancelar.onclick = function() {
+            btnCancelar.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
                 fecharModalEdicao();
-            };
+            });
+        } else {
+            console.error('Botão cancelar não encontrado no modal');
         }
 
-        // Fechar ao clicar fora
+        // Fechar ao clicar fora do modal (no overlay)
         overlay.addEventListener('click', (e) => {
             if (e.target === overlay) {
                 fecharModalEdicao();
@@ -367,12 +530,13 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
 
         // Fechar com ESC
-        document.addEventListener('keydown', function handler(e) {
+        const escHandler = function(e) {
             if (e.key === 'Escape') {
                 fecharModalEdicao();
-                document.removeEventListener('keydown', handler);
+                document.removeEventListener('keydown', escHandler);
             }
-        });
+        };
+        document.addEventListener('keydown', escHandler);
 
         // Submissão do formulário de edição
         form.addEventListener('submit', async function(e) {

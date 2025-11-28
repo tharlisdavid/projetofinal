@@ -609,3 +609,86 @@ function mostrarModalAniversarioComRedirect(nomeCompleto, dataNascimento, redire
         }, 200);
     });
 }
+
+// ========================================
+// TOOLTIPS DE AJUDA - APIs
+// ========================================
+
+// Inicializar tooltips de ajuda
+function inicializarTooltipsAPI() {
+    // Criar overlay global se não existir
+    let overlay = document.getElementById('tooltip-overlay-global');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'tooltip-overlay-global';
+        overlay.className = 'tooltip-overlay';
+        document.body.appendChild(overlay);
+    }
+
+    // Botões de ajuda
+    const botoesAjuda = document.querySelectorAll('.btn-ajuda-api');
+
+    botoesAjuda.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const tooltipId = this.getAttribute('data-tooltip');
+            const tooltip = document.getElementById(tooltipId);
+
+            if (tooltip) {
+                abrirTooltipAPI(tooltip, overlay);
+            }
+        });
+    });
+
+    // Fechar ao clicar no overlay
+    overlay.addEventListener('click', () => {
+        fecharTooltipsAPI(overlay);
+    });
+
+    // Botões de fechar dentro dos tooltips
+    document.querySelectorAll('.tooltip-fechar').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            fecharTooltipsAPI(overlay);
+        });
+    });
+
+    // Fechar com ESC
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            fecharTooltipsAPI(overlay);
+        }
+    });
+}
+
+// Abrir tooltip
+function abrirTooltipAPI(tooltip, overlay) {
+    // Fechar outros tooltips abertos
+    document.querySelectorAll('.tooltip-api.ativo').forEach(t => {
+        t.classList.remove('ativo');
+    });
+
+    // Abrir este tooltip
+    overlay.classList.add('ativo');
+    tooltip.classList.add('ativo');
+
+    // Focar no botão de fechar para acessibilidade
+    const btnFechar = tooltip.querySelector('.tooltip-fechar');
+    if (btnFechar) {
+        setTimeout(() => btnFechar.focus(), 100);
+    }
+}
+
+// Fechar todos os tooltips
+function fecharTooltipsAPI(overlay) {
+    overlay.classList.remove('ativo');
+    document.querySelectorAll('.tooltip-api.ativo').forEach(tooltip => {
+        tooltip.classList.remove('ativo');
+    });
+}
+
+// Inicializar quando o DOM estiver pronto
+document.addEventListener('DOMContentLoaded', inicializarTooltipsAPI);

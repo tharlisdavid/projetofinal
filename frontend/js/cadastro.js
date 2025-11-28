@@ -35,11 +35,26 @@ document.addEventListener('DOMContentLoaded', async function() {
     let fotoUsuario = null;
 
     // ========================================
+    // MODO DE EDIÇÃO
+    // ========================================
+
+    // Verificar se estamos em modo de edição (URL com ?editar=ID)
+    const urlParams = new URLSearchParams(window.location.search);
+    const usuarioEditarId = urlParams.get('editar');
+    let modoEdicao = false;
+    let cpfOriginal = '';
+
+    // ========================================
     // INICIALIZAÇÃO
     // ========================================
 
     // Carregar estados no select
     await carregarEstados();
+
+    // Se estiver em modo de edição, carregar dados do usuário
+    if (usuarioEditarId) {
+        await carregarUsuarioParaEdicao(usuarioEditarId);
+    }
 
     // ========================================
     // EVENT LISTENERS
@@ -101,25 +116,37 @@ document.addEventListener('DOMContentLoaded', async function() {
     campoNome.addEventListener('blur', () => validarCampoObrigatorio(campoNome, 'nome'));
     campoSobrenome.addEventListener('blur', () => validarCampoObrigatorio(campoSobrenome, 'sobrenome'));
 
-    // Limpar formulário
+    // Limpar formulário / Cancelar edição
     btnLimpar.addEventListener('click', function() {
-        mostrarConfirmacao(
-            'Limpar Formulário',
-            'Tem certeza que deseja limpar todos os campos do formulário?',
-            () => {
-                form.reset();
-                limparErros();
-                // Restaurar select de cidade se necessário
-                garantirCidadeComoSelect();
-                campoCidade = document.getElementById('cidade');
-                campoCidade.innerHTML = '<option value="">Selecione primeiro o estado</option>';
-                campoCidade.disabled = true;
-                document.getElementById('cidade-ajuda').textContent = 'Cidades disponíveis após selecionar o estado';
-                // Limpar foto
-                removerFoto();
-                mostrarNotificacao('Formulário limpo com sucesso', 'info');
-            }
-        );
+        if (modoEdicao) {
+            // Modo edição: Cancelar e voltar para lista
+            mostrarConfirmacao(
+                'Cancelar Edição',
+                'Deseja cancelar a edição e voltar para a lista? As alterações não salvas serão perdidas.',
+                () => {
+                    window.location.href = 'lista.html';
+                }
+            );
+        } else {
+            // Modo cadastro: Limpar formulário
+            mostrarConfirmacao(
+                'Limpar Formulário',
+                'Tem certeza que deseja limpar todos os campos do formulário?',
+                () => {
+                    form.reset();
+                    limparErros();
+                    // Restaurar select de cidade se necessário
+                    garantirCidadeComoSelect();
+                    campoCidade = document.getElementById('cidade');
+                    campoCidade.innerHTML = '<option value="">Selecione primeiro o estado</option>';
+                    campoCidade.disabled = true;
+                    document.getElementById('cidade-ajuda').textContent = 'Cidades disponíveis após selecionar o estado';
+                    // Limpar foto
+                    removerFoto();
+                    mostrarNotificacao('Formulário limpo com sucesso', 'info');
+                }
+            );
+        }
     });
 
     // Submissão do formulário
@@ -129,28 +156,36 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (await validarFormulario()) {
             const usuario = coletarDadosFormulario();
 
-            mostrarConfirmacao(
-                'Confirmar Cadastro',
-                `Deseja cadastrar o usuário ${usuario.nome} ${usuario.sobrenome}?`,
-                async () => {
-                    // Debug: dados antes de salvar
-                    console.log('Dados do usuário a salvar:', usuario);
+            // Título e mensagem dependem do modo
+            const titulo = modoEdicao ? 'Confirmar Edição' : 'Confirmar Cadastro';
+            const mensagem = modoEdicao
+                ? `Deseja salvar as alterações do usuário ${usuario.nome} ${usuario.sobrenome}?`
+                : `Deseja cadastrar o usuário ${usuario.nome} ${usuario.sobrenome}?`;
 
-                    // Salvar usuário
-                    const usuarioSalvo = await Storage.salvarUsuario(usuario);
+            mostrarConfirmacao(titulo, mensagem, async () => {
+                let resultado;
 
-                    // Debug: verificar se salvou
-                    console.log('Usuário salvo:', usuarioSalvo);
-
-                    if (usuarioSalvo) {
-                        // Mostrar modal de aniversário
-                        const nomeCompleto = `${usuario.nome} ${usuario.sobrenome}`;
-                        mostrarModalAniversarioComRedirect(nomeCompleto, usuario.dataNascimento);
-                    } else {
-                        mostrarErroFormulario('Erro ao salvar usuário. Tente novamente.');
-                    }
+                if (modoEdicao) {
+                    // Modo edição: atualizar usuário existente
+                    resultado = await Storage.atualizarUsuario(usuarioEditarId, usuario);
+                    console.log('Usuário atualizado:', resultado);
+                } else {
+                    // Modo cadastro: criar novo usuário
+                    resultado = await Storage.salvarUsuario(usuario);
+                    console.log('Usuário salvo:', resultado);
                 }
-            );
+
+                if (resultado) {
+                    // Mostrar modal de aniversário e redirecionar para lista
+                    const nomeCompleto = `${usuario.nome} ${usuario.sobrenome}`;
+                    mostrarModalAniversarioComRedirect(nomeCompleto, usuario.dataNascimento, 'lista.html');
+                } else {
+                    mostrarErroFormulario(modoEdicao
+                        ? 'Erro ao atualizar usuário. Tente novamente.'
+                        : 'Erro ao salvar usuário. Tente novamente.'
+                    );
+                }
+            });
         }
     });
 
@@ -174,6 +209,71 @@ document.addEventListener('DOMContentLoaded', async function() {
         } catch (error) {
             console.error('Erro ao carregar estados:', error);
             mostrarNotificacao('Erro ao carregar estados', 'erro');
+        }
+    }
+
+    // Função para carregar dados do usuário no modo de edição
+    async function carregarUsuarioParaEdicao(id) {
+        try {
+            const usuario = await Storage.getUsuarioPorId(id);
+
+            if (!usuario) {
+                mostrarErroFormulario('Usuário não encontrado');
+                window.location.href = 'lista.html';
+                return;
+            }
+
+            // Ativar modo edição
+            modoEdicao = true;
+            cpfOriginal = usuario.cpf.replace(/\D/g, '');
+
+            // Atualizar título da página e botão
+            document.querySelector('.titulo-pagina').textContent = 'Editar Usuário';
+            document.querySelector('.subtitulo-pagina').textContent = 'Altere os dados do usuário e clique em salvar.';
+            document.querySelector('.card-titulo').textContent = 'Dados do Usuário';
+            btnCadastrar.innerHTML = '<span aria-hidden="true">✓</span> Salvar Alterações';
+
+            // Mudar texto do botão limpar
+            btnLimpar.innerHTML = '<span aria-hidden="true">↩</span> Cancelar';
+
+            // Preencher campos com dados do usuário
+            campoNome.value = usuario.nome || '';
+            campoSobrenome.value = usuario.sobrenome || '';
+            campoCPF.value = usuario.cpf || '';
+            document.getElementById('dataNascimento').value = usuario.dataNascimento || '';
+            campoCEP.value = usuario.cep || '';
+            campoLogradouro.value = usuario.logradouro || '';
+            document.getElementById('numero').value = usuario.numero || '';
+            document.getElementById('complemento').value = usuario.complemento || '';
+            campoBairro.value = usuario.bairro || '';
+
+            // Preencher foto se existir
+            if (usuario.foto) {
+                fotoUsuario = usuario.foto;
+                fotoPreview.innerHTML = `<img src="${usuario.foto}" alt="Foto do usuário">`;
+                btnRemoverFoto.style.display = 'inline-flex';
+            }
+
+            // Preencher estado e cidade
+            if (usuario.estado) {
+                campoEstado.value = usuario.estado;
+                await carregarCidades(usuario.estado, usuario.cidade);
+                campoCidade = document.getElementById('cidade');
+                if (usuario.cidade) {
+                    campoCidade.value = usuario.cidade;
+                }
+            }
+
+            // Marcar CPF como válido (já foi validado antes)
+            campoCPF.classList.add('valido');
+            document.getElementById('cpf-ajuda').textContent = 'CPF válido';
+
+            mostrarNotificacao('Dados carregados para edição', 'info');
+
+        } catch (error) {
+            console.error('Erro ao carregar usuário:', error);
+            mostrarErroFormulario('Erro ao carregar dados do usuário');
+            window.location.href = 'lista.html';
         }
     }
 
@@ -320,15 +420,24 @@ document.addEventListener('DOMContentLoaded', async function() {
             return false;
         }
 
-        // Verificar se CPF já existe no sistema
-        const usuarios = await Storage.getUsuarios();
-        const cpfExiste = usuarios.some(u => u.cpf.replace(/\D/g, '') === cpfLimpo);
+        // Verificar se CPF já existe no sistema (exceto no modo edição se for o mesmo CPF)
+        if (!modoEdicao || cpfLimpo !== cpfOriginal) {
+            const usuarios = await Storage.getUsuarios();
+            const cpfExiste = usuarios.some(u => {
+                const cpfUsuario = u.cpf.replace(/\D/g, '');
+                // No modo edição, ignorar o próprio usuário
+                if (modoEdicao && u.id === usuarioEditarId) {
+                    return false;
+                }
+                return cpfUsuario === cpfLimpo;
+            });
 
-        if (cpfExiste) {
-            erroSpan.textContent = 'Este CPF já está cadastrado no sistema.';
-            campoCPF.classList.add('invalido');
-            campoCPF.classList.remove('valido');
-            return false;
+            if (cpfExiste) {
+                erroSpan.textContent = 'Este CPF já está cadastrado no sistema.';
+                campoCPF.classList.add('invalido');
+                campoCPF.classList.remove('valido');
+                return false;
+            }
         }
 
         // CPF passou na validação básica
@@ -352,6 +461,15 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Se CPF incompleto ou já validado, pular
         if (cpfLimpo.length < 11) {
             return false;
+        }
+
+        // No modo edição, se o CPF não mudou, marcar como válido sem chamar API
+        if (modoEdicao && cpfLimpo === cpfOriginal) {
+            erroSpan.textContent = '';
+            campoCPF.classList.add('valido');
+            campoCPF.classList.remove('invalido');
+            cpfAjuda.textContent = '✓ CPF válido';
+            return true;
         }
 
         // Evitar validação duplicada
