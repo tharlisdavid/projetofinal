@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Lista de usuários cadastrados no sistema">
+    <title>Lista de Usuários | Sistema de Gestão</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Skip link para acessibilidade -->
+    <a href="#conteudo-principal" class="skip-link">Pular para o conteúdo principal</a>
+
+    <!-- Cabeçalho -->
+    <header class="cabecalho" role="banner">
+        <div class="container cabecalho-conteudo">
+            <a href="index.html" class="logo" aria-label="Página inicial do Sistema de Gestão">
+                <span class="logo-icone" aria-hidden="true">👤</span>
+                <span> Cadastro de Usuário</span>
+            </a>
+            <nav class="navegacao" role="navigation" aria-label="Menu principal">
+                <a href="index.html" class="nav-link">
+                    <span aria-hidden="true">📝</span>
+                    Cadastro
+                </a>
+                <a href="lista.html" class="nav-link ativo" aria-current="page">
+                    <span aria-hidden="true">📋</span>
+                    Lista de Usuários
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Conteúdo Principal -->
+    <main id="conteudo-principal" class="principal" role="main">
+        <div class="container">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+                <div>
+                    <h1 class="titulo-pagina">Lista de Usuários</h1>
+                    <p class="subtitulo-pagina" style="margin-bottom: 0;">
+                        <span id="contador-usuarios">0 usuários cadastrados</span>
+                    </p>
+                </div>
+                <a href="index.html" class="btn btn-primario">
+                    <span aria-hidden="true">➕</span>
+                    Novo Usuário
+                </a>
+            </div>
+
+            <div class="card">
+                <!-- Tabela para desktop -->
+                <div class="tabela-container" id="tabela-container">
+                    <table class="tabela" role="table" aria-label="Lista de usuários cadastrados">
+                        <thead>
+                            <tr>
+                                <th scope="col">Nome Completo</th>
+                                <th scope="col">CPF</th>
+                                <th scope="col">Cidade/Estado</th>
+                                <th scope="col">Data de Cadastro</th>
+                                <th scope="col">
+                                    <span class="sr-only">Ações</span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-corpo">
+                            <!-- Linhas serão inseridas via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Cards para mobile -->
+                <div class="lista-cards" id="lista-cards" aria-label="Lista de usuários cadastrados">
+                    <!-- Cards serão inseridos via JavaScript -->
+                </div>
+
+                <!-- Estado vazio -->
+                <div id="estado-vazio" class="estado-vazio" style="display: none;">
+                    <div class="estado-vazio-icone" aria-hidden="true">📭</div>
+                    <h3 class="estado-vazio-titulo">Nenhum usuário cadastrado</h3>
+                    <p>Comece cadastrando o primeiro usuário no sistema.</p>
+                    <a href="index.html" class="btn btn-primario" style="margin-top: 1rem;">
+                        <span aria-hidden="true">➕</span>
+                        Cadastrar Usuário
+                    </a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal de Edição (template) -->
+    <template id="template-modal-edicao">
+        <div class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-edicao-titulo">
+            <div class="modal modal-edicao">
+                <h2 id="modal-edicao-titulo" class="modal-titulo">Editar Usuário</h2>
+
+                <form id="form-edicao" class="formulario" novalidate>
+                    <input type="hidden" id="edit-id" name="id">
+
+                    <!-- Foto do usuário -->
+                    <div class="campo-foto-container">
+                        <div class="foto-preview" id="edit-foto-preview" role="img" aria-label="Prévia da foto do usuário">
+                            <span class="foto-placeholder" aria-hidden="true">👤</span>
+                        </div>
+                        <div class="foto-acoes">
+                            <label class="campo-label">Foto do Usuário</label>
+                            <div class="foto-botoes">
+                                <button type="button" class="btn btn-secundario btn-sm" id="edit-btn-camera">
+                                    <span aria-hidden="true">📷</span>
+                                    Câmera
+                                </button>
+                                <button type="button" class="btn btn-secundario btn-sm" id="edit-btn-galeria">
+                                    <span aria-hidden="true">🖼️</span>
+                                    Galeria
+                                </button>
+                                <button type="button" class="btn btn-perigo btn-sm" id="edit-btn-remover-foto" style="display: none;">
+                                    <span aria-hidden="true">🗑️</span>
+                                </button>
+                            </div>
+                            <input type="file" id="edit-input-foto-camera" accept="image/*" capture="user" class="input-foto-hidden">
+                            <input type="file" id="edit-input-foto-galeria" accept="image/*" class="input-foto-hidden">
+                        </div>
+                    </div>
+
+                    <div class="grupo-campos">
+                        <div class="campo">
+                            <label for="edit-nome" class="campo-label">
+                                Nome <span class="campo-obrigatorio" aria-hidden="true">*</span>
+                            </label>
+                            <input type="text" id="edit-nome" name="nome" class="campo-input" required>
+                            <span id="edit-nome-erro" class="campo-erro" role="alert"></span>
+                        </div>
+
+                        <div class="campo">
+                            <label for="edit-sobrenome" class="campo-label">
+                                Sobrenome <span class="campo-obrigatorio" aria-hidden="true">*</span>
+                            </label>
+                            <input type="text" id="edit-sobrenome" name="sobrenome" class="campo-input" required>
+                            <span id="edit-sobrenome-erro" class="campo-erro" role="alert"></span>
+                        </div>
+                    </div>
+
+                    <div class="campo">
+                        <label for="edit-cpf" class="campo-label">
+                            CPF <span class="campo-obrigatorio" aria-hidden="true">*</span>
+                        </label>
+                        <input type="text" id="edit-cpf" name="cpf" class="campo-input" required maxlength="14" placeholder="000.000.000-00" inputmode="numeric">
+                        <span id="edit-cpf-ajuda" class="campo-ajuda">Digite apenas os números do CPF</span>
+                        <span id="edit-cpf-erro" class="campo-erro" role="alert"></span>
+                    </div>
+
+                    <div class="campo">
+                        <label for="edit-dataNascimento" class="campo-label">
+                            Data de Nascimento <span class="campo-obrigatorio" aria-hidden="true">*</span>
+                        </label>
+                        <input type="date" id="edit-dataNascimento" name="dataNascimento" class="campo-input" required>
+                        <span id="edit-dataNascimento-erro" class="campo-erro" role="alert"></span>
+                    </div>
+
+                    <div class="secao-separador"><span>Endereço</span></div>
+
+                    <div class="campo">
+                        <label for="edit-cep" class="campo-label">CEP</label>
+                        <div class="campo-com-icone">
+                            <input type="text" id="edit-cep" name="cep" class="campo-input" maxlength="9" placeholder="00000-000" inputmode="numeric">
+                            <span id="edit-cep-icone" class="campo-icone" aria-hidden="true">🔍</span>
+                        </div>
+                        <span id="edit-cep-ajuda" class="campo-ajuda">Digite o CEP para buscar o endereço</span>
+                        <span id="edit-cep-erro" class="campo-erro" role="alert"></span>
+                    </div>
+
+                    <div class="grupo-campos">
+                        <div class="campo">
+                            <label for="edit-estado" class="campo-label">Estado</label>
+                            <select id="edit-estado" name="estado" class="campo-select">
+                                <option value="">Selecione o estado</option>
+                            </select>
+                            <span id="edit-estado-ajuda" class="campo-ajuda">Selecione para filtrar as cidades</span>
+                        </div>
+                        <div class="campo">
+                            <label for="edit-cidade" class="campo-label">Cidade</label>
+                            <select id="edit-cidade" name="cidade" class="campo-select" disabled>
+                                <option value="">Selecione primeiro o estado</option>
+                            </select>
+                            <span id="edit-cidade-ajuda" class="campo-ajuda" aria-live="polite"></span>
+                        </div>
+                    </div>
+
+                    <div class="grupo-campos">
+                        <div class="campo">
+                            <label for="edit-logradouro" class="campo-label">Logradouro</label>
+                            <input type="text" id="edit-logradouro" name="logradouro" class="campo-input">
+                        </div>
+                        <div class="campo">
+                            <label for="edit-numero" class="campo-label">Número</label>
+                            <input type="text" id="edit-numero" name="numero" class="campo-input">
+                        </div>
+                    </div>
+
+                    <div class="grupo-campos">
+                        <div class="campo">
+                            <label for="edit-complemento" class="campo-label">Complemento</label>
+                            <input type="text" id="edit-complemento" name="complemento" class="campo-input">
+                        </div>
+                        <div class="campo">
+                            <label for="edit-bairro" class="campo-label">Bairro</label>
+                            <input type="text" id="edit-bairro" name="bairro" class="campo-input">
+                        </div>
+                    </div>
+
+                    <div class="modal-acoes">
+                        <button type="button" class="btn btn-secundario" id="btn-cancelar-edicao">Cancelar</button>
+                        <button type="submit" class="btn btn-sucesso" id="btn-salvar-edicao">
+                            <span aria-hidden="true">✓</span>
+                            Salvar Alterações
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </template>
+
+    <!-- Rodapé -->
+    <footer class="rodape" role="contentinfo">
+        <div class="container rodape-conteudo">
+            <p>&copy; 2025 Sistema de Gestão de Usuários. Todos os direitos reservados.</p>
+            <p>Desenvolvido por Tharlis David.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/utils.js"></script>
+    <script src="js/lista.js"></script>
+</body>
+</html>

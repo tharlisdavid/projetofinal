@@ -332,3 +332,4 @@ Para informações técnicas detalhadas sobre a arquitetura do sistema, consulte
 
 - [Documentação de Arquitetura](docs/ARCHITECTURE.md)
 # projetofinal
+# projetofinal
